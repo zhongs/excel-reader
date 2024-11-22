@@ -55,7 +55,7 @@
           </div>
         </div>
 
-        <div class="json-container">
+        <div class="json-section">
           <div class="json-header">
             <h3 class="current-file-name">{{ selectedFile ? selectedFile.name : '' }}</h3>
             <button v-if="selectedFile" @click="copyToClipboard" class="copy-button">
@@ -63,9 +63,7 @@
               Copy JSON
             </button>
           </div>
-          <div class="json-viewer">
-            <pre v-html="formatJSON(selectedFile ? selectedFile.content : '')"></pre>
-          </div>
+          <div class="json-content" v-html="formatJSON(selectedFile ? selectedFile.content : '')"></div>
         </div>
       </div>
     </div>
@@ -317,50 +315,25 @@ export default {
 }
 
 .content {
-  flex: 1;
   display: flex;
-  flex-direction: row;
+  height: 100%;
   overflow: hidden;
-  min-height: 0;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .file-section {
-  flex: 0 0 320px;
-  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  width: 300px;
+  min-width: 300px;
+  height: 100%;
+  background: #f8f9fa;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  background: white;
-  border-radius: 12px 0 0 12px;
+  border-right: 1px solid #e0e0e0;
 }
 
 .file-list-header {
-  padding: 20px;
+  padding: 16px;
   background: white;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.file-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  background: #f8f9fa;
-}
-
-.hidden-input {
-  width: 0.1px;
-  height: 0.1px;
-  opacity: 0;
-  overflow: hidden;
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .upload-label {
@@ -368,54 +341,53 @@ export default {
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #2c3e50, #3498db);
+  padding: 8px 16px;
+  background: #3498db;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.95em;
+  transition: all 0.2s ease;
+  font-size: 0.9em;
   font-weight: 500;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 6px rgba(44, 62, 80, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .upload-label:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(44, 62, 80, 0.2);
-  background: linear-gradient(135deg, #34495e, #2980b9);
+  background: #2980b9;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-.upload-label:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(44, 62, 80, 0.15);
+.hidden-input {
+  display: none;
+}
+
+.file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
 }
 
 .file-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  color: #2c3e50;
-  position: relative;
+  padding: 8px 12px;
+  margin-bottom: 4px;
   background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  width: 100%;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border: 1px solid #e0e0e0;
+  position: relative;
 }
 
 .file-item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  background: #f0f2f5;
 }
 
 .file-item.active {
-  background: #2c3e50;
-  color: white;
-  box-shadow: 0 2px 6px rgba(44, 62, 80, 0.2);
+  background: #e3f2fd;
+  border-color: #90caf9;
 }
 
 .file-icon {
@@ -429,21 +401,25 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.95em;
+  font-size: 0.9em;
+  color: #2c3e50;
+  padding-right: 24px;
 }
 
 .delete-button {
-  opacity: 0;
   position: absolute;
-  right: 12px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
+  opacity: 0;
   background: none;
   border: none;
+  color: #64748b;
   cursor: pointer;
-  color: currentColor;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 4px;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
   transition: all 0.2s ease;
 }
 
@@ -453,16 +429,17 @@ export default {
 
 .delete-button:hover {
   opacity: 1 !important;
-  background: rgba(0, 0, 0, 0.05);
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
 }
 
-.json-container {
+.json-section {
   flex: 1;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  background: white;
-  border-radius: 0 12px 12px 0;
+  background: #1e1e1e;
 }
 
 .json-header {
@@ -506,6 +483,18 @@ export default {
   opacity: 0.8;
 }
 
+.json-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
 /* 自定义滚动条样式 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -526,42 +515,29 @@ export default {
 }
 
 /* JSON语法高亮 */
-.json-viewer {
-  flex: 1;
-  padding: 20px;
-  background: #1e1e1e;
-  overflow: auto;
-  color: #d4d4d4;
+.json-content {
   font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-  border-radius: 0 0 12px 0;
 }
 
-.json-viewer pre {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  tab-size: 2;
-}
-
-.json-viewer .key {
+.json-content .key {
   color: #9cdcfe;
   font-weight: 500;
 }
 
-.json-viewer .string {
+.json-content .string {
   color: #ce9178;
 }
 
-.json-viewer .number {
+.json-content .number {
   color: #b5cea8;
 }
 
-.json-viewer .boolean {
+.json-content .boolean {
   color: #569cd6;
   font-weight: 500;
 }
 
-.json-viewer .null {
+.json-content .null {
   color: #569cd6;
   font-style: italic;
 }
