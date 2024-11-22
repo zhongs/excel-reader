@@ -7,7 +7,7 @@
 访问以下任一链接体验：
 
 - GitHub Pages: [Excel JSON Viewer](https://zhongs.github.io/excel-reader/)
-- Vercel: [Excel JSON Viewer on Vercel](https://excel-reader-junjweqqr-191492580-qqcoms-projects.vercel.app/)
+- Vercel: [Excel JSON Viewer on Vercel](https://excel-json-viewer.vercel.app)
 - Netlify: [Excel JSON Viewer on Netlify](https://excel-reader.netlify.app)
 
 ## ✨ 功能特点
