@@ -574,4 +574,203 @@ export default {
   margin-left: -1px;
   height: 100%;
 }
+
+/* 移动端样式 */
+@media (max-width: 768px) {
+  .app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .header {
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+  }
+
+  .title {
+    font-size: 1.3em;
+    margin-bottom: 4px;
+  }
+
+  .main-content {
+    padding: 12px;
+    height: calc(100vh - 60px);
+    overflow: hidden;
+  }
+
+  .content {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .file-section {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    max-height: 35vh;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .file-list {
+    padding: 8px;
+  }
+
+  .file-item {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+  }
+
+  .file-item:active {
+    background: #e9ecef;
+    transform: scale(0.98);
+  }
+
+  .file-name {
+    font-size: 0.95em;
+    padding-right: 36px;
+  }
+
+  .delete-button {
+    width: 32px;
+    height: 32px;
+    right: 6px;
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+  }
+
+  .upload-label {
+    margin: 8px;
+    padding: 12px 16px;
+    font-size: 0.95em;
+    border-radius: 6px;
+    text-align: center;
+    background: linear-gradient(45deg, #3498db, #2980b9);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .json-section {
+    flex: 1;
+    min-height: 0;
+    border-radius: 8px;
+    background: #1e1e1e;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .json-header {
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(4px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .json-title {
+    font-size: 0.95em;
+    color: #e0e0e0;
+  }
+
+  .copy-button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+
+  .copy-button:active {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(0.98);
+  }
+
+  .json-content {
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 触摸优化 */
+  .file-item,
+  .upload-label,
+  .copy-button,
+  .delete-button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease, background-color 0.2s ease;
+  }
+
+  /* 滚动条优化 */
+  .file-list,
+  .json-content {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .file-list::-webkit-scrollbar,
+  .json-content::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 横屏模式优化 */
+@media (max-width: 768px) and (orientation: landscape) {
+  .main-content {
+    height: calc(100vh - 50px);
+  }
+
+  .content {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .file-section {
+    width: 280px;
+    min-width: 280px;
+    max-height: none;
+    height: 100%;
+  }
+
+  .json-section {
+    height: 100%;
+  }
+
+  .file-list {
+    height: calc(100% - 70px);
+  }
+
+  .upload-label {
+    margin: 8px;
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .file-section {
+    background: #2d2d2d;
+    border-color: #404040;
+  }
+
+  .file-item {
+    background: #333;
+    border-color: #404040;
+  }
+
+  .file-name {
+    color: #e0e0e0;
+  }
+
+  .delete-button {
+    background: rgba(45, 45, 45, 0.8);
+    color: #e0e0e0;
+  }
+}
 </style>
