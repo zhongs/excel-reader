@@ -23,26 +23,23 @@
           <div class="file-list-header">
             <!-- 文件上传区域 -->
             <div class="upload-section">
-              <label 
-                class="upload-label" 
-                for="file-upload"
-              >
+              <label class="upload-label" for="file-upload">
                 <i class="upload-icon">📁</i>
                 Upload Excel
               </label>
-              <input 
+              <input
                 id="file-upload"
                 type="file"
                 accept=".xlsx,.xls"
                 @change="handleFileUpload"
                 class="hidden-input"
-              >
+              />
             </div>
           </div>
 
           <div class="file-list">
-            <div 
-              v-for="file in files" 
+            <div
+              v-for="file in files"
               :key="file.id"
               class="file-item"
               :class="{ active: selectedFile && selectedFile.id === file.id }"
@@ -50,14 +47,18 @@
             >
               <i class="file-icon">📄</i>
               <span class="file-name">{{ file.name }}</span>
-              <button class="delete-button" @click.stop="deleteFile(file)">×</button>
+              <button class="delete-button" @click.stop="deleteFile(file)">
+                ×
+              </button>
             </div>
           </div>
         </div>
 
         <div class="json-section">
           <div class="json-header">
-            <h3 class="current-file-name">{{ selectedFile ? selectedFile.name : '' }}</h3>
+            <h3 class="current-file-name">
+              {{ selectedFile ? selectedFile.name : "" }}
+            </h3>
             <div class="action-buttons" v-if="selectedFile">
               <button @click="copyToClipboard" class="action-button">
                 <i class="copy-icon">📋</i>
@@ -73,7 +74,10 @@
               </button>
             </div>
           </div>
-          <div class="json-content" v-html="formatJSON(selectedFile ? selectedFile.content : '')"></div>
+          <div
+            class="json-content"
+            v-html="formatJSON(selectedFile ? selectedFile.content : '')"
+          ></div>
         </div>
       </div>
     </div>
@@ -81,73 +85,78 @@
 </template>
 
 <script>
-import { ref, onMounted, nextTick } from 'vue';
-import { readAllExcelFiles } from '../utils/excelReader';
-import * as XLSX from 'xlsx';
-import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-import Papa from 'papaparse';
-import html2canvas from 'html2canvas';
+import { ref, onMounted, nextTick } from "vue";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
+import Papa from "papaparse";
+import html2canvas from "html2canvas";
 
 export default {
-  name: 'ExcelReader',
+  name: "ExcelReader",
   setup() {
     const files = ref([]);
     const selectedFile = ref(null);
-    const jsonContent = ref('');
+    const jsonContent = ref("");
     const loading = ref(false);
     const error = ref(null);
 
     const formatJSON = (jsonString) => {
-      if (!jsonString) return '';
-      
+      if (!jsonString) return "";
+
       try {
-        const obj = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+        const obj =
+          typeof jsonString === "string" ? JSON.parse(jsonString) : jsonString;
         const formatted = JSON.stringify(obj, null, 2);
-        
+
         // 转义HTML字符
         const escaped = formatted
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-        
-        // 添加语法高亮和行号
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        // 添加语法高亮
         const highlighted = escaped
-          .split('\n')
-          .map((line, index) => {
-            const lineNumber = `<span class="line-number">${index + 1}</span>`;
-            
+          .split("\n")
+          .map((line) => {
             // 保持原始缩进空格
             const spaces = line.match(/^\s*/)[0];
             const content = line.slice(spaces.length);
-            
+
             // 处理行内容
             const lineContent = content
               .replace(/(".*?"):/g, '<span class="key">$1</span>:')
               .replace(/: (".*?")(,?)/g, ': <span class="string">$1</span>$2')
-              .replace(/: (-?\d+\.?\d*)(,?)/g, ': <span class="number">$1</span>$2')
-              .replace(/: (true|false|null)(,?)/g, ': <span class="boolean">$1</span>$2');
-            
-            // 使用 CSS 缩进，行号固定不缩进
+              .replace(
+                /: (-?\d+\.?\d*)(,?)/g,
+                ': <span class="number">$1</span>$2'
+              )
+              .replace(
+                /: (true|false|null)(,?)/g,
+                ': <span class="boolean">$1</span>$2'
+              );
+
+            // 使用 CSS 缩进
             const indentSize = spaces.length;
             return `
-              <div class="json-line">
-                ${lineNumber}
-                <span class="line-content" style="padding-left: ${indentSize * 10}px">
-                  ${lineContent}
-                </span>
-              </div>`;
+          <div class="json-line">
+            <span class="line-content" style="padding-left: ${
+              indentSize * 10
+            }px">
+              ${lineContent}
+            </span>
+          </div>`;
           })
-          .join('');
-        
+          .join("");
+
         return highlighted;
       } catch (e) {
-        return 'Invalid JSON';
+        return "Invalid JSON";
       }
     };
 
     const loadHistory = () => {
-      const history = localStorage.getItem('excelReaderHistory');
+      const history = localStorage.getItem("excelReaderHistory");
       if (history) {
         files.value = JSON.parse(history);
         // 如果有历史记录，自动选择第一个文件
@@ -159,7 +168,7 @@ export default {
     };
 
     const saveHistory = () => {
-      localStorage.setItem('excelReaderHistory', JSON.stringify(files.value));
+      localStorage.setItem("excelReaderHistory", JSON.stringify(files.value));
     };
 
     const handleFileUpload = async (event) => {
@@ -171,26 +180,26 @@ export default {
         const workbook = XLSX.read(arrayBuffer, {
           cellDates: true,
           cellNF: true,
-          cellText: false
+          cellText: false,
         });
-        
+
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
         // 使用默认选项先获取数据
         const rawData = XLSX.utils.sheet_to_json(worksheet, {
-          raw: false,  // 使用格式化的值
-          defval: null // 空单元格用null
+          raw: false, // 使用格式化的值
+          defval: null, // 空单元格用null
         });
 
         // 处理数据，移除空字段和 __EMPTY 字段
-        const processedData = rawData.map(row => {
+        const processedData = rawData.map((row) => {
           const newRow = {};
           Object.entries(row).forEach(([key, value]) => {
             // 跳过 __EMPTY 开头的字段和 null 值
-            if (!key.startsWith('__EMPTY') && value !== null && value !== '') {
+            if (!key.startsWith("__EMPTY") && value !== null && value !== "") {
               // 如果是数字字符串，保持精度
-              if (typeof value === 'string' && !isNaN(value)) {
+              if (typeof value === "string" && !isNaN(value)) {
                 newRow[key] = Number(value);
               } else {
                 newRow[key] = value;
@@ -205,7 +214,7 @@ export default {
           id: Date.now(),
           name: file.name,
           uploadTime: new Date().toLocaleString(),
-          content: JSON.stringify(processedData, null, 2)
+          content: JSON.stringify(processedData, null, 2),
         };
 
         // 添加到文件列表
@@ -216,12 +225,12 @@ export default {
         // 保存到localStorage
         saveHistory();
       } catch (error) {
-        console.error('Error reading file:', error);
-        alert('Error reading file: ' + error.message);
+        console.error("Error reading file:", error);
+        alert("Error reading file: " + error.message);
       }
 
       // 清除input的value，允许重复上传同一个文件
-      event.target.value = '';
+      event.target.value = "";
     };
 
     const selectFile = (file) => {
@@ -230,20 +239,20 @@ export default {
     };
 
     const deleteFile = (fileToDelete) => {
-      const index = files.value.findIndex(f => f.id === fileToDelete.id);
+      const index = files.value.findIndex((f) => f.id === fileToDelete.id);
       if (index !== -1) {
         files.value.splice(index, 1);
-        
+
         // 如果删除的是当前选中的文件，则选择新的文件
         if (selectedFile.value && selectedFile.value.id === fileToDelete.id) {
           if (files.value.length > 0) {
             selectFile(files.value[0]);
           } else {
             selectedFile.value = null;
-            jsonContent.value = '';
+            jsonContent.value = "";
           }
         }
-        
+
         // 更新localStorage
         saveHistory();
       }
@@ -255,59 +264,64 @@ export default {
           const jsonString = selectedFile.content;
           await navigator.clipboard.writeText(jsonString);
           // 可以添加一个临时提示，表示复制成功
-          const button = document.querySelector('.copy-button');
+          const button = document.querySelector(".copy-button");
           const originalText = button.textContent;
-          button.textContent = 'Copied!';
+          button.textContent = "Copied!";
           setTimeout(() => {
             button.textContent = originalText;
           }, 2000);
         }
       } catch (err) {
-        console.error('Failed to copy:', err);
+        console.error("Failed to copy:", err);
       }
     };
 
     const exportToCSV = () => {
       if (!selectedFile.value || !selectedFile.value.content) return;
-      
+
       try {
-        const jsonData = typeof selectedFile.value.content === 'string' 
-          ? JSON.parse(selectedFile.value.content) 
-          : selectedFile.value.content;
+        const jsonData =
+          typeof selectedFile.value.content === "string"
+            ? JSON.parse(selectedFile.value.content)
+            : selectedFile.value.content;
 
         // Convert JSON to CSV
         const csv = Papa.unparse(jsonData);
-        
+
         // Create blob and download
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
-        
-        link.setAttribute('href', url);
-        link.setAttribute('download', `${selectedFile.value.name.split('.')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        
+
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `${selectedFile.value.name.split(".")[0]}.csv`
+        );
+        link.style.visibility = "hidden";
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       } catch (e) {
-        error.value = 'Failed to export CSV: ' + e.message;
+        error.value = "Failed to export CSV: " + e.message;
       }
     };
 
     const exportToPDF = async () => {
       if (!selectedFile.value || !selectedFile.value.content) return;
-      
+
       try {
-        const jsonData = typeof selectedFile.value.content === 'string' 
-          ? JSON.parse(selectedFile.value.content) 
-          : selectedFile.value.content;
+        const jsonData =
+          typeof selectedFile.value.content === "string"
+            ? JSON.parse(selectedFile.value.content)
+            : selectedFile.value.content;
 
         // 创建临时表格元素
-        const tempTable = document.createElement('div');
-        tempTable.style.position = 'absolute';
-        tempTable.style.left = '-9999px';
-        tempTable.style.top = '-9999px';
+        const tempTable = document.createElement("div");
+        tempTable.style.position = "absolute";
+        tempTable.style.left = "-9999px";
+        tempTable.style.top = "-9999px";
         document.body.appendChild(tempTable);
 
         // 创建表格HTML
@@ -319,16 +333,36 @@ export default {
               <thead>
                 <tr style="background-color: #4285f4; color: white;">
                   <th style="padding: 12px; border: 1px solid #ddd; text-align: center; width: 50px;">序号</th>
-                  ${headers.map(header => `<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">${header}</th>`).join('')}
+                  ${headers
+                    .map(
+                      (header) =>
+                        `<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">${header}</th>`
+                    )
+                    .join("")}
                 </tr>
               </thead>
               <tbody>
-                ${jsonData.map((row, index) => `
-                  <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'}">
-                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${index + 1}</td>
-                    ${headers.map(header => `<td style="padding: 12px; border: 1px solid #ddd;">${row[header] != null ? row[header] : ''}</td>`).join('')}
+                ${jsonData
+                  .map(
+                    (row, index) => `
+                  <tr style="background-color: ${
+                    index % 2 === 0 ? "#ffffff" : "#f8f9fa"
+                  }">
+                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${
+                      index + 1
+                    }</td>
+                    ${headers
+                      .map(
+                        (header) =>
+                          `<td style="padding: 12px; border: 1px solid #ddd;">${
+                            row[header] != null ? row[header] : ""
+                          }</td>`
+                      )
+                      .join("")}
                   </tr>
-                `).join('')}
+                `
+                  )
+                  .join("")}
               </tbody>
             </table>
           </div>
@@ -342,21 +376,21 @@ export default {
         const canvas = await html2canvas(tempTable, {
           scale: 2, // 提高清晰度
           useCORS: true,
-          logging: false
+          logging: false,
         });
 
         // 移除临时元素
         document.body.removeChild(tempTable);
 
         // 创建PDF
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF("p", "mm", "a4");
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
         const margin = 10;
 
         // 计算实际可用区域
-        const usableWidth = pageWidth - (margin * 2);
-        const usableHeight = pageHeight - (margin * 2);
+        const usableWidth = pageWidth - margin * 2;
+        const usableHeight = pageHeight - margin * 2;
 
         // 计算图片缩放比例
         const imgRatio = canvas.width / canvas.height;
@@ -377,36 +411,42 @@ export default {
           const srcHeight = canvas.height / totalPages;
 
           // 创建临时画布用于当前页
-          const tempCanvas = document.createElement('canvas');
+          const tempCanvas = document.createElement("canvas");
           tempCanvas.width = canvas.width;
           tempCanvas.height = srcHeight;
 
           // 将对应部分绘制到临时画布
-          const ctx = tempCanvas.getContext('2d');
+          const ctx = tempCanvas.getContext("2d");
           ctx.drawImage(
             canvas,
-            0, srcY, canvas.width, srcHeight,
-            0, 0, canvas.width, srcHeight
+            0,
+            srcY,
+            canvas.width,
+            srcHeight,
+            0,
+            0,
+            canvas.width,
+            srcHeight
           );
 
           // 将临时画布内容添加到PDF
-          const pageImgData = tempCanvas.toDataURL('image/jpeg', 1.0);
+          const pageImgData = tempCanvas.toDataURL("image/jpeg", 1.0);
           pdf.addImage(
             pageImgData,
-            'JPEG',
+            "JPEG",
             margin,
             margin,
             usableWidth,
             usableHeight,
             undefined,
-            'FAST'
+            "FAST"
           );
         }
 
         // 保存PDF
-        pdf.save(`${selectedFile.value.name.split('.')[0]}.pdf`);
+        pdf.save(`${selectedFile.value.name.split(".")[0]}.pdf`);
       } catch (e) {
-        error.value = '导出 PDF 失败: ' + e.message;
+        error.value = "导出 PDF 失败: " + e.message;
       }
     };
 
@@ -426,10 +466,10 @@ export default {
       deleteFile,
       copyToClipboard,
       exportToCSV,
-      exportToPDF
-    }
-  }
-}
+      exportToPDF,
+    };
+  },
+};
 </script>
 
 <style scoped>
@@ -448,7 +488,8 @@ export default {
   bottom: 0;
   background: #f0f2f5;
   color: #2c3e50;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
 }
 
 .header {
@@ -675,7 +716,7 @@ export default {
 }
 
 .json-content {
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: "Consolas", "Monaco", monospace;
   font-size: 14px;
   line-height: 1.5;
   padding: 20px;
