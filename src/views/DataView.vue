@@ -1,6 +1,7 @@
 <template>
   <div class="data-view">
     <div class="toolbar">
+      <button @click="copyJSON">复制 JSON</button>
       <button @click="exportCSV">导出 CSV</button>
       <button @click="exportPDF">导出 PDF</button>
     </div>
@@ -21,6 +22,18 @@ export default {
   setup() {
     const fileStore = useFileStore();
 
+    const copyJSON = async () => {
+      if (!fileStore.selectedFile?.content) return;
+      
+      try {
+        await navigator.clipboard.writeText(fileStore.selectedFile.content);
+        alert('JSON 已复制到剪贴板');
+      } catch (err) {
+        console.error('复制失败:', err);
+        alert('复制失败，请重试');
+      }
+    };
+
     const exportCSV = () => {
       if (!fileStore.selectedFile) return;
 
@@ -39,6 +52,7 @@ export default {
 
     return {
       fileStore,
+      copyJSON,
       exportCSV,
       exportPDF
     };
