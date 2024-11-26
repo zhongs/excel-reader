@@ -58,10 +58,20 @@
         <div class="json-section">
           <div class="json-header">
             <h3 class="current-file-name">{{ selectedFile ? selectedFile.name : '' }}</h3>
-            <button v-if="selectedFile" @click="copyToClipboard" class="copy-button">
-              <i class="copy-icon">📋</i>
-              Copy JSON
-            </button>
+            <div class="action-buttons" v-if="selectedFile">
+              <button @click="copyToClipboard" class="action-button">
+                <i class="copy-icon">📋</i>
+                Copy JSON
+              </button>
+              <button @click="exportToCSV" class="action-button">
+                <i class="export-icon">📊</i>
+                Export CSV
+              </button>
+              <button @click="exportToPDF" class="action-button">
+                <i class="export-icon">📄</i>
+                Export PDF
+              </button>
+            </div>
           </div>
           <div class="json-content" v-html="formatJSON(selectedFile ? selectedFile.content : '')"></div>
         </div>
@@ -71,9 +81,13 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { readAllExcelFiles } from '../utils/excelReader';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import Papa from 'papaparse';
+import html2canvas from 'html2canvas';
 
 export default {
   name: 'ExcelReader',
@@ -100,32 +114,20 @@ export default {
         // 添加语法高亮和行号
         const highlighted = escaped
           .split('\n')
-          .map((line, i) => {
-            // 计算缩进级别
-            const indentLevel = (line.match(/^\s*/)[0].length / 2);
-            const indentGuides = Array(indentLevel).fill('<span class="json-indent"></span>').join('');
-            
-            // 添加语法高亮
-            const colorized = line
-              // 高亮键名
-              .replace(/"([^"]+)":/g, '<span class="key">"$1"</span>:')
-              // 高亮字符串值
-              .replace(/: "([^"]+)"/g, ': <span class="string">"$1"</span>')
-              // 高亮数字
-              .replace(/: (-?\d+\.?\d*)/g, ': <span class="number">$1</span>')
-              // 高亮布尔值
-              .replace(/: (true|false)/g, ': <span class="boolean">$1</span>')
-              // 高亮null
-              .replace(/: (null)/g, ': <span class="null">$1</span>');
-              
-            return `<span class="json-line">${indentGuides}${colorized}</span>`;
+          .map((line, index) => {
+            const lineNumber = `<span class="line-number">${index + 1}</span>`;
+            const lineContent = line
+              .replace(/"(.*?)":/g, '<span class="json-key">"$1":</span>')
+              .replace(/"(.*?)"/g, '<span class="json-string">"$1"</span>')
+              .replace(/\b(true|false|null)\b/g, '<span class="json-boolean">$1</span>')
+              .replace(/\b(\d+)\b/g, '<span class="json-number">$1</span>');
+            return `<div class="json-line">${lineNumber}${lineContent}</div>`;
           })
-          .join('\n');
-          
+          .join('');
+        
         return highlighted;
-      } catch (error) {
-        console.error('JSON formatting error:', error);
-        return jsonString;
+      } catch (e) {
+        return 'Invalid JSON';
       }
     };
 
@@ -250,6 +252,149 @@ export default {
       }
     };
 
+    const exportToCSV = () => {
+      if (!selectedFile.value || !selectedFile.value.content) return;
+      
+      try {
+        const jsonData = typeof selectedFile.value.content === 'string' 
+          ? JSON.parse(selectedFile.value.content) 
+          : selectedFile.value.content;
+
+        // Convert JSON to CSV
+        const csv = Papa.unparse(jsonData);
+        
+        // Create blob and download
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${selectedFile.value.name.split('.')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (e) {
+        error.value = 'Failed to export CSV: ' + e.message;
+      }
+    };
+
+    const exportToPDF = async () => {
+      if (!selectedFile.value || !selectedFile.value.content) return;
+      
+      try {
+        const jsonData = typeof selectedFile.value.content === 'string' 
+          ? JSON.parse(selectedFile.value.content) 
+          : selectedFile.value.content;
+
+        // 创建临时表格元素
+        const tempTable = document.createElement('div');
+        tempTable.style.position = 'absolute';
+        tempTable.style.left = '-9999px';
+        tempTable.style.top = '-9999px';
+        document.body.appendChild(tempTable);
+
+        // 创建表格HTML
+        const headers = Object.keys(jsonData[0] || {});
+        const tableHTML = `
+          <div style="padding: 20px; font-family: Arial, sans-serif;">
+            <h2 style="margin-bottom: 20px;">${selectedFile.value.name}</h2>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="background-color: #4285f4; color: white;">
+                  <th style="padding: 12px; border: 1px solid #ddd; text-align: center; width: 50px;">序号</th>
+                  ${headers.map(header => `<th style="padding: 12px; border: 1px solid #ddd; text-align: left;">${header}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${jsonData.map((row, index) => `
+                  <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'}">
+                    <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">${index + 1}</td>
+                    ${headers.map(header => `<td style="padding: 12px; border: 1px solid #ddd;">${row[header] != null ? row[header] : ''}</td>`).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+        tempTable.innerHTML = tableHTML;
+
+        // 等待下一个渲染周期
+        await nextTick();
+
+        // 使用html2canvas渲染
+        const canvas = await html2canvas(tempTable, {
+          scale: 2, // 提高清晰度
+          useCORS: true,
+          logging: false
+        });
+
+        // 移除临时元素
+        document.body.removeChild(tempTable);
+
+        // 创建PDF
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+
+        // 计算实际可用区域
+        const usableWidth = pageWidth - (margin * 2);
+        const usableHeight = pageHeight - (margin * 2);
+
+        // 计算图片缩放比例
+        const imgRatio = canvas.width / canvas.height;
+        const imgWidth = usableWidth;
+        const imgHeight = imgWidth / imgRatio;
+
+        // 计算总页数
+        const totalPages = Math.ceil(imgHeight / usableHeight);
+
+        // 对每一页进行处理
+        for (let i = 0; i < totalPages; i++) {
+          if (i > 0) {
+            pdf.addPage();
+          }
+
+          // 计算当前页的裁剪区域
+          const srcY = i * (canvas.height / totalPages);
+          const srcHeight = canvas.height / totalPages;
+
+          // 创建临时画布用于当前页
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = canvas.width;
+          tempCanvas.height = srcHeight;
+
+          // 将对应部分绘制到临时画布
+          const ctx = tempCanvas.getContext('2d');
+          ctx.drawImage(
+            canvas,
+            0, srcY, canvas.width, srcHeight,
+            0, 0, canvas.width, srcHeight
+          );
+
+          // 将临时画布内容添加到PDF
+          const pageImgData = tempCanvas.toDataURL('image/jpeg', 1.0);
+          pdf.addImage(
+            pageImgData,
+            'JPEG',
+            margin,
+            margin,
+            usableWidth,
+            usableHeight,
+            undefined,
+            'FAST'
+          );
+        }
+
+        // 保存PDF
+        pdf.save(`${selectedFile.value.name.split('.')[0]}.pdf`);
+      } catch (e) {
+        error.value = '导出 PDF 失败: ' + e.message;
+      }
+    };
+
     onMounted(() => {
       loadHistory();
     });
@@ -264,7 +409,9 @@ export default {
       handleFileUpload,
       selectFile,
       deleteFile,
-      copyToClipboard
+      copyToClipboard,
+      exportToCSV,
+      exportToPDF
     }
   }
 }
@@ -458,9 +605,38 @@ export default {
   font-weight: 500;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background-color: #4a5568;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.action-button:hover {
+  background-color: #2d3748;
+}
+
+.export-icon {
+  font-size: 1.1rem;
+}
+
 .copy-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
   padding: 8px 16px;
   background: #f8f9fa;
   color: #2c3e50;
