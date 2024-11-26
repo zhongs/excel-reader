@@ -116,12 +116,27 @@ export default {
           .split('\n')
           .map((line, index) => {
             const lineNumber = `<span class="line-number">${index + 1}</span>`;
-            const lineContent = line
-              .replace(/"(.*?)":/g, '<span class="json-key">"$1":</span>')
-              .replace(/"(.*?)"/g, '<span class="json-string">"$1"</span>')
-              .replace(/\b(true|false|null)\b/g, '<span class="json-boolean">$1</span>')
-              .replace(/\b(\d+)\b/g, '<span class="json-number">$1</span>');
-            return `<div class="json-line">${lineNumber}${lineContent}</div>`;
+            
+            // 保持原始缩进空格
+            const spaces = line.match(/^\s*/)[0];
+            const content = line.slice(spaces.length);
+            
+            // 处理行内容
+            const lineContent = content
+              .replace(/(".*?"):/g, '<span class="key">$1</span>:')
+              .replace(/: (".*?")(,?)/g, ': <span class="string">$1</span>$2')
+              .replace(/: (-?\d+\.?\d*)(,?)/g, ': <span class="number">$1</span>$2')
+              .replace(/: (true|false|null)(,?)/g, ': <span class="boolean">$1</span>$2');
+            
+            // 使用 CSS 缩进，行号固定不缩进
+            const indentSize = spaces.length;
+            return `
+              <div class="json-line">
+                ${lineNumber}
+                <span class="line-content" style="padding-left: ${indentSize * 10}px">
+                  ${lineContent}
+                </span>
+              </div>`;
           })
           .join('');
         
@@ -660,95 +675,75 @@ export default {
 }
 
 .json-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
   font-family: 'Consolas', 'Monaco', monospace;
   font-size: 14px;
   line-height: 1.5;
-  color: #d4d4d4;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-/* 自定义滚动条样式 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  padding: 20px;
+  background: #1e1e1e;
   border-radius: 4px;
+  overflow-x: auto;
+  color: #d4d4d4;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* JSON语法高亮 */
-.json-content {
-  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-}
-
-.json-content .key {
-  color: #9cdcfe;
-  font-weight: 500;
-}
-
-.json-content .string {
-  color: #ce9178;
-}
-
-.json-content .number {
-  color: #b5cea8;
-}
-
-.json-content .boolean {
-  color: #569cd6;
-  font-weight: 500;
-}
-
-.json-content .null {
-  color: #569cd6;
-  font-style: italic;
-}
-
-/* 添加行号和缩进指示线 */
 .json-line {
-  display: block;
-  position: relative;
-  padding-left: 3em;
-  counter-increment: line;
-}
-
-.json-line::before {
-  content: counter(line);
-  position: absolute;
-  left: 0;
-  color: #858585;
-  text-align: right;
-  width: 2em;
-  padding-right: 1em;
-  opacity: 0.5;
-  user-select: none;
+  white-space: pre;
+  padding: 2px 0;
+  display: flex;
+  min-height: 20px;
 }
 
 .json-line:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* 缩进指示线 */
-.json-indent {
-  display: inline-block;
-  width: 20px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  margin-left: -1px;
-  height: 100%;
+.line-number {
+  color: #6b7280;
+  width: 30px;
+  text-align: right;
+  padding-right: 10px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.line-content {
+  flex: 1;
+}
+
+/* JSON 语法高亮 */
+.key {
+  color: #9cdcfe;
+}
+
+.string {
+  color: #ce9178;
+}
+
+.number {
+  color: #b5cea8;
+}
+
+.boolean {
+  color: #569cd6;
+}
+
+/* 自定义滚动条 */
+.json-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.json-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.json-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.json-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* 移动端样式 */
