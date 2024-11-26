@@ -2,6 +2,22 @@
   <div class="excel-reader">
     <div class="header">
       <h2 class="title">Excel Reader</h2>
+      <div class="view-toggle" v-if="selectedFile">
+        <button 
+          class="toggle-button" 
+          :class="{ active: !showChart }"
+          @click="showChart = false"
+        >
+          数据视图
+        </button>
+        <button 
+          class="toggle-button" 
+          :class="{ active: showChart }"
+          @click="showChart = true"
+        >
+          图表视图
+        </button>
+      </div>
     </div>
 
     <div class="main-content">
@@ -54,30 +70,43 @@
           </div>
         </div>
 
-        <div class="json-section">
-          <div class="json-header">
-            <h3 class="current-file-name">
-              {{ selectedFile ? selectedFile.name : "" }}
-            </h3>
-            <div class="action-buttons" v-if="selectedFile">
-              <button @click="copyToClipboard" class="action-button">
-                <i class="copy-icon">📋</i>
-                Copy JSON
-              </button>
-              <button @click="exportToCSV" class="action-button">
-                <i class="export-icon">📊</i>
-                Export CSV
-              </button>
-              <button @click="exportToPDF" class="action-button">
-                <i class="export-icon">📄</i>
-                Export PDF
-              </button>
-            </div>
+        <div class="data-section">
+          <!-- 图表视图 -->
+          <div v-if="showChart && selectedFile" class="chart-section">
+            <div>数据长度: {{ chartData.length }}</div>
+            <div>数据示例: {{ JSON.stringify(chartData[0]) }}</div>
+            <chart-view :data="chartData" />
           </div>
-          <div
-            class="json-content"
-            v-html="formatJSON(selectedFile ? selectedFile.content : '')"
-          ></div>
+          
+          <!-- JSON视图 -->
+          <div v-else class="json-section">
+            <div class="json-header">
+              <h3 class="current-file-name">
+                {{ selectedFile ? selectedFile.name : "" }}
+              </h3>
+              <div class="action-buttons" v-if="selectedFile">
+                <button
+                  @click="copyToClipboard"
+                  class="action-button copy-button"
+                >
+                  <i class="copy-icon">📋</i>
+                  Copy JSON
+                </button>
+                <button @click="exportToCSV" class="action-button">
+                  <i class="export-icon">📊</i>
+                  Export CSV
+                </button>
+                <button @click="exportToPDF" class="action-button">
+                  <i class="export-icon">📄</i>
+                  Export PDF
+                </button>
+              </div>
+            </div>
+            <div
+              class="json-content"
+              v-html="formatJSON(selectedFile ? selectedFile.content : '')"
+            ></div>
+          </div>
         </div>
       </div>
     </div>
@@ -91,15 +120,20 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import Papa from "papaparse";
 import html2canvas from "html2canvas";
+import ChartView from './ChartView.vue';
 
 export default {
   name: "ExcelReader",
+  components: {
+    ChartView
+  },
   setup() {
     const files = ref([]);
     const selectedFile = ref(null);
-    const jsonContent = ref("");
     const loading = ref(false);
     const error = ref(null);
+    const showChart = ref(false);
+    const chartData = ref([]);  
 
     const formatJSON = (jsonString) => {
       if (!jsonString) return "";
@@ -162,7 +196,6 @@ export default {
         // 如果有历史记录，自动选择第一个文件
         if (files.value.length > 0) {
           selectedFile.value = files.value[0];
-          jsonContent.value = selectedFile.value.content;
         }
       }
     };
@@ -209,18 +242,21 @@ export default {
           return newRow;
         });
 
+        // 更新图表数据
+        chartData.value = processedData;
+
         // 创建新的文件记录
         const newFile = {
           id: Date.now(),
           name: file.name,
           uploadTime: new Date().toLocaleString(),
           content: JSON.stringify(processedData, null, 2),
+          rawData: processedData  
         };
 
         // 添加到文件列表
         files.value.unshift(newFile);
         selectedFile.value = newFile;
-        jsonContent.value = newFile.content;
 
         // 保存到localStorage
         saveHistory();
@@ -235,7 +271,7 @@ export default {
 
     const selectFile = (file) => {
       selectedFile.value = file;
-      jsonContent.value = file.content;
+      chartData.value = file.rawData || [];  
     };
 
     const deleteFile = (fileToDelete) => {
@@ -249,7 +285,6 @@ export default {
             selectFile(files.value[0]);
           } else {
             selectedFile.value = null;
-            jsonContent.value = "";
           }
         }
 
@@ -260,19 +295,20 @@ export default {
 
     const copyToClipboard = async () => {
       try {
-        if (selectedFile) {
-          const jsonString = selectedFile.content;
-          await navigator.clipboard.writeText(jsonString);
-          // 可以添加一个临时提示，表示复制成功
-          const button = document.querySelector(".copy-button");
-          const originalText = button.textContent;
-          button.textContent = "Copied!";
+        if (!selectedFile.value || !selectedFile.value.content) return;
+
+        await navigator.clipboard.writeText(selectedFile.value.content);
+        const copyBtn = document.querySelector(".copy-button");
+        if (copyBtn) {
+          const originalHTML = copyBtn.innerHTML;
+          copyBtn.innerHTML = '<i class="copy-icon">✓</i> Copied!';
           setTimeout(() => {
-            button.textContent = originalText;
+            copyBtn.innerHTML = originalHTML;
           }, 2000);
         }
       } catch (err) {
         console.error("Failed to copy:", err);
+        alert("Failed to copy to clipboard");
       }
     };
 
@@ -457,9 +493,10 @@ export default {
     return {
       files,
       selectedFile,
-      jsonContent,
       loading,
       error,
+      showChart,
+      chartData,  
       formatJSON,
       handleFileUpload,
       selectFile,
@@ -473,516 +510,42 @@ export default {
 </script>
 
 <style scoped>
-.excel-reader {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #f0f2f5;
-  color: #2c3e50;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-}
+/*  导入css */
+@import "../assets/styles/excelReader.css";
 
-.header {
-  flex: 0 0 auto;
-  padding: 24px 32px;
-  background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  z-index: 10;
-}
-
-.title {
-  color: #2c3e50;
-  margin: 0;
-  font-size: 1.8em;
-  font-weight: 600;
-  text-align: center;
-  letter-spacing: -0.5px;
-}
-
-.main-content {
-  flex: 1;
-  overflow: hidden;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-}
-
-.content {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-}
-
-.file-section {
-  width: 300px;
-  min-width: 300px;
-  height: 100%;
-  background: #f8f9fa;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid #e0e0e0;
-}
-
-.file-list-header {
-  padding: 16px;
-  background: white;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.upload-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 8px 16px;
-  background: #3498db;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.9em;
-  font-weight: 500;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.upload-label:hover {
-  background: #2980b9;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.hidden-input {
-  display: none;
-}
-
-.file-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  margin-bottom: 4px;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  border: 1px solid #e0e0e0;
-  position: relative;
-}
-
-.file-item:hover {
-  background: #f0f2f5;
-}
-
-.file-item.active {
-  background: #e3f2fd;
-  border-color: #90caf9;
-}
-
-.file-icon {
-  margin-right: 12px;
-  font-size: 1.2em;
-  opacity: 0.8;
-}
-
-.file-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.9em;
-  color: #2c3e50;
-  padding-right: 24px;
-}
-
-.delete-button {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  background: none;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 3px;
-  font-size: 14px;
-  line-height: 1;
-  transition: all 0.2s ease;
-}
-
-.file-item:hover .delete-button {
-  opacity: 0.6;
-}
-
-.delete-button:hover {
-  opacity: 1 !important;
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
-}
-
-.json-section {
-  flex: 1;
-  height: 100%;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: #1e1e1e;
-}
-
-.json-header {
-  padding: 16px 24px;
-  background: white;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.current-file-name {
-  margin: 0;
-  color: #2c3e50;
-  font-size: 1.1em;
-  font-weight: 500;
-}
-
-.action-buttons {
+.view-toggle {
   display: flex;
   gap: 10px;
+  margin-left: auto;
 }
 
-.action-button {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  background-color: #4a5568;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s;
-}
-
-.action-button:hover {
-  background-color: #2d3748;
-}
-
-.export-icon {
-  font-size: 1.1rem;
-}
-
-.copy-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
+.toggle-button {
   padding: 8px 16px;
-  background: #f8f9fa;
-  color: #2c3e50;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: white;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.9em;
-  font-weight: 500;
-}
-
-.copy-button:hover {
-  background: #e9ecef;
-  border-color: rgba(0, 0, 0, 0.12);
-}
-
-.copy-icon {
-  margin-right: 8px;
-  font-size: 1.1em;
-  opacity: 0.8;
-}
-
-.json-content {
-  font-family: "Consolas", "Monaco", monospace;
-  font-size: 14px;
-  line-height: 1.5;
-  padding: 20px;
-  background: #1e1e1e;
   border-radius: 4px;
-  overflow-x: auto;
-  color: #d4d4d4;
+  transition: all 0.3s;
 }
 
-.json-line {
-  white-space: pre;
-  padding: 2px 0;
-  display: flex;
-  min-height: 20px;
+.toggle-button.active {
+  background: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
 }
 
-.json-line:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.line-number {
-  color: #6b7280;
-  width: 30px;
-  text-align: right;
-  padding-right: 10px;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-.line-content {
+.data-section {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* JSON 语法高亮 */
-.key {
-  color: #9cdcfe;
-}
-
-.string {
-  color: #ce9178;
-}
-
-.number {
-  color: #b5cea8;
-}
-
-.boolean {
-  color: #569cd6;
-}
-
-/* 自定义滚动条 */
-.json-content::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.json-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-.json-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.json-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* 移动端样式 */
-@media (max-width: 768px) {
-  .app-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .header {
-    padding: 12px 16px;
-    position: sticky;
-    top: 0;
-  }
-
-  .title {
-    font-size: 1.3em;
-    margin-bottom: 4px;
-  }
-
-  .main-content {
-    padding: 12px;
-    height: calc(100vh - 60px);
-    overflow: hidden;
-  }
-
-  .content {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .file-section {
-    width: 100%;
-    min-width: 100%;
-    height: auto;
-    max-height: 35vh;
-    border-radius: 8px;
-    background: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-
-  .file-list {
-    padding: 8px;
-  }
-
-  .file-item {
-    padding: 12px;
-    margin-bottom: 8px;
-    border-radius: 6px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-  }
-
-  .file-item:active {
-    background: #e9ecef;
-    transform: scale(0.98);
-  }
-
-  .file-name {
-    font-size: 0.95em;
-    padding-right: 36px;
-  }
-
-  .delete-button {
-    width: 32px;
-    height: 32px;
-    right: 6px;
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(4px);
-  }
-
-  .upload-label {
-    margin: 8px;
-    padding: 12px 16px;
-    font-size: 0.95em;
-    border-radius: 6px;
-    text-align: center;
-    background: linear-gradient(45deg, #3498db, #2980b9);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  .json-section {
-    flex: 1;
-    min-height: 0;
-    border-radius: 8px;
-    background: #1e1e1e;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
-
-  .json-header {
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(4px);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  .json-title {
-    font-size: 0.95em;
-    color: #e0e0e0;
-  }
-
-  .copy-button {
-    padding: 8px 12px;
-    font-size: 0.9em;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #fff;
-  }
-
-  .copy-button:active {
-    background: rgba(255, 255, 255, 0.15);
-    transform: scale(0.98);
-  }
-
-  .json-content {
-    font-size: 13px;
-    line-height: 1.5;
-    padding: 16px;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* 触摸优化 */
-  .file-item,
-  .upload-label,
-  .copy-button,
-  .delete-button {
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    transition: transform 0.15s ease, background-color 0.2s ease;
-  }
-
-  /* 滚动条优化 */
-  .file-list,
-  .json-content {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .file-list::-webkit-scrollbar,
-  .json-content::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* 横屏模式优化 */
-@media (max-width: 768px) and (orientation: landscape) {
-  .main-content {
-    height: calc(100vh - 50px);
-  }
-
-  .content {
-    flex-direction: row;
-    gap: 12px;
-  }
-
-  .file-section {
-    width: 280px;
-    min-width: 280px;
-    max-height: none;
-    height: 100%;
-  }
-
-  .json-section {
-    height: 100%;
-  }
-
-  .file-list {
-    height: calc(100% - 70px);
-  }
-
-  .upload-label {
-    margin: 8px;
-  }
-}
-
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .file-section {
-    background: #2d2d2d;
-    border-color: #404040;
-  }
-
-  .file-item {
-    background: #333;
-    border-color: #404040;
-  }
-
-  .file-name {
-    color: #e0e0e0;
-  }
-
-  .delete-button {
-    background: rgba(45, 45, 45, 0.8);
-    color: #e0e0e0;
-  }
+.chart-section {
+  flex: 1;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 </style>
