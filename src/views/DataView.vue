@@ -15,6 +15,7 @@
 import { useFileStore } from '../stores/fileStore';
 import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import Papa from 'papaparse';
 
 export default {
@@ -87,42 +88,152 @@ export default {
       }
     };
 
-    const exportPDF = () => {
-      if (!fileStore.selectedFile?.content) {
+    const exportPDF = async () => {
+      if (!fileStore.selectedFile?.rawData) {
         alert('没有可导出的数据');
         return;
       }
 
       try {
-        const doc = new jsPDF();
-        
-        // 设置中文字体
-        doc.setFont('courier', 'normal');
-        
-        // 获取格式化的 JSON 字符串
-        let content = fileStore.selectedFile.content;
-        if (typeof content !== 'string') {
-          content = JSON.stringify(content, null, 2);
+        // 创建临时表格元素
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.width = '1500px'; // 设置更大的宽度
+        tempDiv.style.background = 'white';
+        tempDiv.style.padding = '20px';
+        document.body.appendChild(tempDiv);
+
+        // 获取数据
+        let data = fileStore.selectedFile.rawData;
+        if (typeof data === 'string') {
+          data = JSON.parse(data);
         }
+        if (!Array.isArray(data)) {
+          data = [data];
+        }
+
+        // 创建表格HTML
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.style.fontFamily = 'Arial, sans-serif';
+        table.style.fontSize = '12px';
+
+        // 添加标题
+        const titleRow = document.createElement('div');
+        titleRow.style.fontSize = '18px';
+        titleRow.style.fontWeight = 'bold';
+        titleRow.style.marginBottom = '15px';
+        titleRow.textContent = fileStore.selectedFile.name;
+        tempDiv.appendChild(titleRow);
+
+        // 添加表头
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
         
-        // 分行处理
-        const lines = content.split('\n');
-        let y = 10;
-        const fontSize = 10;
-        doc.setFontSize(fontSize);
-        
-        lines.forEach(line => {
-          if (y > 280) { // 如果接近页面底部，添加新页
-            doc.addPage();
-            y = 10;
-          }
-          doc.text(line, 10, y);
-          y += fontSize * 0.5;
+        // 添加序号列头
+        const indexTh = document.createElement('th');
+        indexTh.textContent = '序号';
+        indexTh.style.backgroundColor = '#4CAF50';
+        indexTh.style.color = 'white';
+        indexTh.style.padding = '8px';
+        indexTh.style.border = '1px solid #ddd';
+        indexTh.style.textAlign = 'center';
+        indexTh.style.width = '60px';
+        headerRow.appendChild(indexTh);
+
+        // 添加其他列头
+        Object.keys(data[0]).forEach(key => {
+          const th = document.createElement('th');
+          th.textContent = key;
+          th.style.backgroundColor = '#4CAF50';
+          th.style.color = 'white';
+          th.style.padding = '8px';
+          th.style.border = '1px solid #ddd';
+          th.style.textAlign = 'left';
+          headerRow.appendChild(th);
         });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // 添加数据行
+        const tbody = document.createElement('tbody');
+        data.forEach((row, index) => {
+          const tr = document.createElement('tr');
+          tr.style.backgroundColor = index % 2 === 0 ? '#f9f9f9' : 'white';
+          
+          // 添加序号列
+          const indexTd = document.createElement('td');
+          indexTd.textContent = (index + 1).toString();
+          indexTd.style.padding = '8px';
+          indexTd.style.border = '1px solid #ddd';
+          indexTd.style.textAlign = 'center';
+          tr.appendChild(indexTd);
+
+          // 添加数据列
+          Object.values(row).forEach(value => {
+            const td = document.createElement('td');
+            td.textContent = value === null || value === undefined ? '' : String(value);
+            td.style.padding = '8px';
+            td.style.border = '1px solid #ddd';
+            td.style.maxWidth = '200px'; // 限制单元格最大宽度
+            td.style.whiteSpace = 'normal'; // 允许文本换行
+            td.style.wordBreak = 'break-word'; // 长单词换行
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        tempDiv.appendChild(table);
+
+        // 使用html2canvas捕获表格
+        const canvas = await html2canvas(tempDiv, {
+          scale: 1, // 降低缩放比例以适应更多内容
+          backgroundColor: 'white',
+          logging: false,
+          width: 1500, // 设置与div相同的宽度
+          height: tempDiv.offsetHeight,
+          windowWidth: 1500,
+          onclone: function(clonedDoc) {
+            const clonedDiv = clonedDoc.querySelector('div');
+            if (clonedDiv) {
+              clonedDiv.style.position = 'relative';
+              clonedDiv.style.left = '0';
+            }
+          }
+        });
+
+        // 移除临时元素
+        document.body.removeChild(tempDiv);
+
+        // 转换为PDF
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
         
-        // 生成文件名
+        // 计算PDF尺寸，确保整个表格可见
+        const pdfWidth = 297; // A4 宽度（横向）
+        const pdfHeight = 210; // A4 高度（横向）
+        const ratio = canvas.height / canvas.width;
+        const imgWidth = pdfWidth;
+        const imgHeight = pdfWidth * ratio;
+
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        // 如果图片高度超过页面高度，调整宽度以适应
+        if (imgHeight > pdfHeight) {
+          const adjustedWidth = (pdfHeight / ratio);
+          pdf.addImage(imgData, 'JPEG', (pdfWidth - adjustedWidth) / 2, 0, adjustedWidth, pdfHeight);
+        } else {
+          pdf.addImage(imgData, 'JPEG', 0, (pdfHeight - imgHeight) / 2, imgWidth, imgHeight);
+        }
+
+        // 保存文件
         const fileName = fileStore.selectedFile.name.replace(/\.[^/.]+$/, "") + '.pdf';
-        doc.save(fileName);
+        pdf.save(fileName);
       } catch (error) {
         console.error('导出 PDF 失败:', error);
         alert('导出 PDF 失败: ' + (error.message || '请重试'));
