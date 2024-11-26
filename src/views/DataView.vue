@@ -35,19 +35,98 @@ export default {
     };
 
     const exportCSV = () => {
-      if (!fileStore.selectedFile) return;
+      if (!fileStore.selectedFile?.rawData) {
+        alert('没有可导出的数据');
+        return;
+      }
 
-      const csv = Papa.unparse(fileStore.selectedFile.rawData);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      saveAs(blob, `${fileStore.selectedFile.name}.csv`);
+      try {
+        // 尝试解析数据
+        let data = fileStore.selectedFile.rawData;
+        
+        // 如果数据是字符串，尝试解析它
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch (e) {
+            console.error('数据解析失败:', e);
+            alert('数据格式错误，无法导出');
+            return;
+          }
+        }
+
+        // 确保数据是数组
+        if (!Array.isArray(data)) {
+          data = [data];
+        }
+
+        // 使用 Papa Parse 转换为 CSV，添加配置以处理特殊字符
+        const csv = Papa.unparse(data, {
+          quotes: true,      // 给所有字段加引号
+          header: true,      // 包含表头
+          encoding: "utf-8", // 使用 UTF-8 编码
+          skipEmptyLines: true // 跳过空行
+        });
+
+        // 添加 BOM 标记以支持中文
+        const csvContent = "\ufeff" + csv;
+        
+        // 创建 Blob 对象
+        const blob = new Blob([csvContent], { 
+          type: 'text/csv;charset=utf-8;' 
+        });
+
+        // 生成文件名
+        const fileName = fileStore.selectedFile.name.replace(/\.[^/.]+$/, "") + '.csv';
+        
+        // 保存文件
+        saveAs(blob, fileName);
+      } catch (error) {
+        console.error('导出 CSV 失败:', error);
+        alert('导出 CSV 失败: ' + (error.message || '请重试'));
+      }
     };
 
     const exportPDF = () => {
-      if (!fileStore.selectedFile) return;
+      if (!fileStore.selectedFile?.content) {
+        alert('没有可导出的数据');
+        return;
+      }
 
-      const doc = new jsPDF();
-      doc.text(fileStore.selectedFile.content, 10, 10);
-      doc.save(`${fileStore.selectedFile.name}.pdf`);
+      try {
+        const doc = new jsPDF();
+        
+        // 设置中文字体
+        doc.setFont('courier', 'normal');
+        
+        // 获取格式化的 JSON 字符串
+        let content = fileStore.selectedFile.content;
+        if (typeof content !== 'string') {
+          content = JSON.stringify(content, null, 2);
+        }
+        
+        // 分行处理
+        const lines = content.split('\n');
+        let y = 10;
+        const fontSize = 10;
+        doc.setFontSize(fontSize);
+        
+        lines.forEach(line => {
+          if (y > 280) { // 如果接近页面底部，添加新页
+            doc.addPage();
+            y = 10;
+          }
+          doc.text(line, 10, y);
+          y += fontSize * 0.5;
+        });
+        
+        // 生成文件名
+        const fileName = fileStore.selectedFile.name.replace(/\.[^/.]+$/, "") + '.pdf';
+        doc.save(fileName);
+      } catch (error) {
+        console.error('导出 PDF 失败:', error);
+        alert('导出 PDF 失败: ' + (error.message || '请重试'));
+      }
     };
 
     return {
