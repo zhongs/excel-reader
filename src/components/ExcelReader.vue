@@ -133,7 +133,26 @@ export default {
     const loading = ref(false);
     const error = ref(null);
     const showChart = ref(false);
-    const chartData = ref([]);  
+    const chartData = ref([]);
+
+    const parseCellValue = (value) => {
+      if (typeof value !== "string") return value;
+
+      const trimmed = value.trim();
+      if (trimmed === "") return value;
+
+      if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      const significantDigits = trimmed.replace(/[-.]/g, "").length;
+      if (significantDigits > 15) {
+        return trimmed;
+      }
+
+      const numericValue = Number(trimmed);
+      return Number.isFinite(numericValue) ? numericValue : trimmed;
+    };
 
     const formatJSON = (jsonString) => {
       if (!jsonString) return "";
@@ -231,12 +250,7 @@ export default {
           Object.entries(row).forEach(([key, value]) => {
             // 跳过 __EMPTY 开头的字段和 null 值
             if (!key.startsWith("__EMPTY") && value !== null && value !== "") {
-              // 如果是数字字符串，保持精度
-              if (typeof value === "string" && !isNaN(value)) {
-                newRow[key] = Number(value);
-              } else {
-                newRow[key] = value;
-              }
+              newRow[key] = parseCellValue(value);
             }
           });
           return newRow;

@@ -75,6 +75,25 @@ export default {
   setup() {
     const fileStore = useFileStore();
 
+    const parseCellValue = (value) => {
+      if (typeof value !== "string") return value;
+
+      const trimmed = value.trim();
+      if (trimmed === "") return value;
+
+      if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+        return trimmed;
+      }
+
+      const significantDigits = trimmed.replace(/[-.]/g, "").length;
+      if (significantDigits > 15) {
+        return trimmed;
+      }
+
+      const numericValue = Number(trimmed);
+      return Number.isFinite(numericValue) ? numericValue : trimmed;
+    };
+
     onMounted(() => {
       fileStore.loadHistory();
     });
@@ -105,11 +124,7 @@ export default {
           const newRow = {};
           Object.entries(row).forEach(([key, value]) => {
             if (!key.startsWith("__EMPTY") && value !== null && value !== "") {
-              if (typeof value === "string" && !isNaN(value)) {
-                newRow[key] = Number(value);
-              } else {
-                newRow[key] = value;
-              }
+              newRow[key] = parseCellValue(value);
             }
           });
           return newRow;
